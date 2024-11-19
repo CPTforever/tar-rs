@@ -744,7 +744,7 @@ impl Header {
         }
     }
 
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(any(target_arch = "wasm32", target_os = "twizzler"))]
     #[allow(unused_variables)]
     fn fill_platform_from(&mut self, meta: &fs::Metadata, mode: HeaderMode) {
         unimplemented!();
@@ -1603,6 +1603,12 @@ fn ends_with_slash(p: &Path) -> bool {
     p.as_os_str().as_bytes().ends_with(&[b'/'])
 }
 
+#[cfg(target_os = "twizzler")]
+fn ends_with_slash(p: &Path) -> bool {
+    use std::os::twizzler::ffi::OsStrExt;
+    p.as_os_str().as_bytes().ends_with(&[b'/'])
+}
+
 #[cfg(any(windows, target_arch = "wasm32"))]
 pub fn path2bytes(p: &Path) -> io::Result<Cow<[u8]>> {
     p.as_os_str()
@@ -1629,6 +1635,26 @@ pub fn path2bytes(p: &Path) -> io::Result<Cow<[u8]>> {
 /// On unix this will never fail
 pub fn path2bytes(p: &Path) -> io::Result<Cow<[u8]>> {
     Ok(p.as_os_str().as_bytes()).map(Cow::Borrowed)
+}
+
+#[cfg(target_os = "twizzler")]/// On unix this will never fail
+pub fn path2bytes(p: &Path) -> io::Result<Cow<[u8]>> {
+    use std::os::twizzler::ffi::OsStrExt;
+
+    Ok(p.as_os_str().as_bytes()).map(Cow::Borrowed)
+}
+
+#[cfg(target_os = "twizzler")]
+/// On unix this operation can never fail.
+pub fn bytes2path(bytes: Cow<[u8]>) -> io::Result<Cow<Path>> {
+    use std::ffi::{OsStr, OsString};
+    use std::os::twizzler::ffi::OsStringExt;
+    use std::os::twizzler::ffi::OsStrExt;
+
+    Ok(match bytes {
+        Cow::Borrowed(bytes) => Cow::Borrowed(Path::new(OsStr::from_bytes(bytes))),
+        Cow::Owned(bytes) => Cow::Owned(PathBuf::from(OsString::from_vec(bytes))),
+    })
 }
 
 #[cfg(windows)]
